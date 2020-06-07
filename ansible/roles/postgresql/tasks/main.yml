@@ -1,0 +1,67 @@
+-   name:       Add key for Postgres repo
+    apt_key:    url=https://www.postgresql.org/media/keys/ACCC4CF8.asc state=present
+    become:     true
+
+-   name:           Add Postgres repo to sources list
+    apt_repository: repo='deb http://apt.postgresql.org/pub/repos/apt/ {{ distro_name }}-pgdg main' state=present
+    become:         true
+
+-   name:   update apt cache
+    apt:    update_cache=yes
+
+-   name:   install postgresql server
+    apt:    name=postgresql-contrib-{{ postgresql.version }} state=latest
+
+#required for postgres ansible modules
+-   name:       install pip, libpq-dev, python-dev
+    apt:        name={{ item }} state=present
+    with_items:
+        - python3-pip
+        - libpq-dev
+        - python3-dev
+
+#required for postgres ansible modules
+-   name: install psycopg2
+    pip:  name=psycopg2-binary state=present
+ 
+-   name: install pgtap
+    apt: name=postgresql-{{ postgresql.version }}-pgtap state=present
+
+-   name:           create postgres users from apps vars
+    postgresql_user:  name={{ item.name }} login_user=postgres role_attr_flags=CREATEDB,SUPERUSER,LOGIN
+    become:         yes
+    become_user:    postgres
+    with_items:     '{{ apps }}'
+
+-   name:           create postgres users from apps vars
+    postgresql_user:  name=web_anon login_user=postgres role_attr_flags=LOGIN
+    become:         yes
+    become_user:    postgres
+    with_items:     '{{ apps }}'
+
+-   name: give users network login access
+    lineinfile:
+      regexp: '^\s*host\s+all\s+all\s+((127\.0\.0\.1\/32)|(10\.0\.2\.0\/24))\s+(md5|trust)'
+      path: /etc/postgresql/{{ postgresql.version }}/main/pg_hba.conf
+      line: host    all             all             10.0.2.0/24            trust
+    notify: restart postgresql
+
+-   name: make postgres listen on all addresses so we can connect from host
+    lineinfile:
+      path: /etc/postgresql/{{ postgresql.version }}/main/postgresql.conf
+      line: listen_addresses = '*'
+    notify: restart postgresql
+
+
+-   name: Make postgres client connections default to UTC timezone
+    lineinfile:
+        dest: /etc/postgresql/{{ postgresql.version }}/main/postgresql.conf
+        regexp: ^(.*)timezone = 
+        line: timezone = 'Etc/UTC'
+    notify:     restart php-fpm
+
+-   name:           create databases from apps vars
+    postgresql_db:  name={{ item.name }} owner={{ item.name }} encoding=UTF-8 lc_collate={{ locale }} lc_ctype={{ locale }}
+    become:         yes
+    become_user:    postgres
+    with_items:     '{{ apps }}'

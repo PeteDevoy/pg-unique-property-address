@@ -1,0 +1,7 @@
+-   name: install pgtap
+    apt: name=postgresql-{{ postgresql.version }}-pgtap state=present
+
+-   name:           add extension to database
+    postgresql_ext: name=pgtap db={{ project.name }}
+    become:         true
+    become_user:    postgres

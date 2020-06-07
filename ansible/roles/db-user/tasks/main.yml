@@ -1,0 +1,19 @@
+- name: create group for db-data
+  group:
+    name:  db-data
+    state: present
+
+- name: create groups for each app
+  group:
+    name:  '{{ item.name }}'
+    state: present
+  with_items: '{{ apps }}'
+
+- name: create user for each app
+  user:
+    name:       '{{ item.name }}'
+    groups:     'db-data,{{ item.name }}'
+    home:       /home/{{ item.name }}
+    shell:      /bin/bash
+    append:     true
+  with_items: '{{ apps }}'

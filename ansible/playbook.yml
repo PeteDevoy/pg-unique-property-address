@@ -1,0 +1,9 @@
+---
+
+-   hosts: all
+    become: true
+    roles:
+        -   general
+        -   db-user
+        -   postgresql
+        -   pgtap
